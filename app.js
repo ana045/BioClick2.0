@@ -1,477 +1,416 @@
-/*
-  REGISTRO DE USO DE IA
-  Herramienta usada: Gemini
-  Partes hechas con ayuda de la IA: ABM de cursos, muro de publicaciones, entregas, corrección y exportación/importación JSON.
-  Partes que escribí o modifiqué yo: Nombres de variables, adaptaciones de diseño responsive para BioClick.
-  Alumno/a: Ana María Chocobar
-  Curso: 6.°
-  Fecha: 31/10/2026
-*/
+// --- ESTADO INICIAL Y CARGA DE DATOS ---
+let cursos = JSON.parse(localStorage.getItem("bioclick_cursos")) || [];
+let publicaciones = JSON.parse(localStorage.getItem("bioclick_publicaciones")) || [];
+let entregas = JSON.parse(localStorage.getItem("bioclick_entregas")) || [];
 
-// --- 1. MODELO DE DATOS Y LOCALSTORAGE ---
-let datosApp = JSON.parse(localStorage.getItem("aula-datos")) || {
-    cursos: [],
-    materiales: [],
-    tareas: [],
-    entregas: []
-};
+let rolActual = "docente"; // "docente" o "alumno"
+let cursoActualId = null;
+let tareaActualId = null;
 
-let modoActual = localStorage.getItem("aula-modo") || "docente";
-let cursoAbiertoId = null; 
-let tareaAbiertaId = null; 
-
-// --- 2. REFERENCIAS A ELEMENTOS DEL DOM ---
+// --- SELECTOR DE ROL ---
 const selectRol = document.getElementById("select-rol");
+if (selectRol) {
+    selectRol.addEventListener("change", (e) => {
+        rolActual = e.target.value;
+        actualizarInterfazRol();
+        renderizarCursos();
+        if (cursoActualId) renderizarMuro(cursoActualId);
+    });
+}
+
+function actualizarInterfazRol() {
+    const elementosDocente = document.querySelectorAll(".solo-docente");
+    elementosDocente.forEach(el => {
+        el.style.display = (rolActual === "docente") ? "block" : "none";
+    });
+}
+
+// --- NAVEGACIÓN ENTRE VISTAS ---
 const vistaCursos = document.getElementById("vista-cursos");
 const vistaMuro = document.getElementById("vista-muro");
 const vistaTarea = document.getElementById("vista-tarea");
 
-const formCurso = document.getElementById("form-curso");
-const grillaCursos = document.getElementById("grilla-cursos");
-const muroTituloCurso = document.getElementById("muro-titulo-curso");
-const btnVolverCursos = document.getElementById("btn-volver-cursos");
-
-const formPublicar = document.getElementById("form-publicar");
-const muroPublicaciones = document.getElementById("muro-publicaciones");
-const pubTipo = document.getElementById("pub-tipo");
-const pubFechaLimite = document.getElementById("pub-fechalimite");
-const pubPuntaje = document.getElementById("pub-puntaje");
-
-const btnVolverMuro = document.getElementById("btn-volver-muro");
-const detalleTarea = document.getElementById("detalle-tarea");
-const formEntrega = document.getElementById("form-entrega");
-const panelEntregaAlumno = document.getElementById("panel-entrega-alumno");
-const panelCorreccionDocente = document.getElementById("panel-correccion-docente");
-const listaEntregas = document.getElementById("lista-entregas");
-
-const btnExportar = document.getElementById("btn-exportar");
-const inputImportar = document.getElementById("input-importar");
-
-// --- 3. PERSISTENCIA ---
-function guardarDatos() {
-    localStorage.setItem("aula-datos", JSON.stringify(datosApp));
-}
-
-// --- 4. GESTIÓN DE VISTAS ---
-function mostrarVista(nombreVista) {
+function mostrarVista(vista) {
     vistaCursos.style.display = "none";
     vistaMuro.style.display = "none";
     vistaTarea.style.display = "none";
-
-    if (nombreVista === "cursos") vistaCursos.style.display = "block";
-    if (nombreVista === "muro") vistaMuro.style.display = "block";
-    if (nombreVista === "tarea") vistaTarea.style.display = "block";
+    vista.style.display = "block";
 }
 
-// --- 5. LÓGICA DE CURSOS ---
-formCurso.addEventListener("submit", (e) => {
-    e.preventDefault();
+// --- GESTIÓN DE CURSOS ---
+const formCurso = document.getElementById("form-curso");
+if (formCurso) {
+    formCurso.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const nuevoCurso = {
+            id: Date.now().toString(),
+            nombre: document.getElementById("curso-nombre").value,
+            docente: document.getElementById("curso-docente").value,
+            color: document.getElementById("curso-color").value,
+            codigo: document.getElementById("curso-codigo").value
+        };
+        cursos.push(nuevoCurso);
+        guardarYRenderizarCursos();
+        formCurso.reset();
+    });
+}
 
-    const nombre = document.getElementById("curso-nombre").value.trim();
-    const docente = document.getElementById("curso-docente").value.trim();
-    const color = document.getElementById("curso-color").value;
-    const codigo = document.getElementById("curso-codigo").value.trim().toUpperCase();
+function guardarYRenderizarCursos() {
+    localStorage.setItem("bioclick_cursos", JSON.stringify(cursos));
+    renderizarCursos();
+}
 
-    const codigoExiste = datosApp.cursos.some(c => c.codigo === codigo);
-    if (codigoExiste) {
-        alert("Ya existe un curso con ese código único.");
+function renderizarCursos() {
+    const grilla = document.getElementById("grilla-cursos");
+    if (!grilla) return;
+    grilla.innerHTML = "";
+    
+    if (cursos.length === 0) {
+        grilla.innerHTML = "<p>No hay cursos creados todavía.</p>";
         return;
     }
-
-    const nuevoCurso = {
-        id: "cv_" + Date.now(),
-        nombre,
-        docente,
-        color,
-        codigo
-    };
-
-    datosApp.cursos.push(nuevoCurso);
-    guardarDatos();
-    formCurso.reset();
-    mostrarCursos();
-});
-
-function mostrarCursos() {
-    grillaCursos.innerHTML = "";
-
-    if (datosApp.cursos.length === 0) {
-        grillaCursos.innerHTML = "<p>No hay cursos creados todavía.</p>";
-        return;
-    }
-
-    datosApp.cursos.forEach(curso => {
-        const tarjeta = document.createElement("div");
-        tarjeta.className = "tarjeta-curso";
-        tarjeta.style.borderTop = `6px solid ${curso.color}`;
-        tarjeta.innerHTML = `
+    
+    cursos.forEach(curso => {
+        const card = document.createElement("div");
+        card.className = "tarjeta-curso";
+        card.style.borderLeft = `6px solid ${curso.color}`;
+        card.innerHTML = `
             <h3>${curso.nombre}</h3>
-            <p>👨‍🏫 Prof: ${curso.docente}</p>
-            <p>🔑 Código: <strong>${curso.codigo}</strong></p>
-            <div class="acciones-curso">
-                <button onclick="abrirMuro('${curso.id}')">📚 Abrir Muro</button>
-                <button class="btn-eliminar solo-docente" onclick="eliminarCurso('${curso.id}')">🗑️ Borrar</button>
-            </div>
+            <p><strong>Prof:</strong> ${curso.docente}</p>
+            <p><small>Código: ${curso.codigo}</small></p>
+            <button class="btn-ingresar" data-id="${curso.id}">Ingresar al curso</button>
+            ${rolActual === 'docente' ? `<button class="btn-eliminar-curso" data-id="${curso.id}" style="background:#e74c3c; color:white; border:none; padding:4px 8px; margin-top:5px; border-radius:4px; cursor:pointer;">Eliminar</button>` : ''}
         `;
-        grillaCursos.appendChild(tarjeta);
+        grilla.appendChild(card);
     });
-
-    aplicarModoRol();
+    
+    document.querySelectorAll(".btn-ingresar").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            cursoActualId = e.target.getAttribute("data-id");
+            abrirMuro(cursoActualId);
+        });
+    });
+    
+    document.querySelectorAll(".btn-eliminar-curso").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const id = e.target.getAttribute("data-id");
+            cursos = cursos.filter(c => c.id !== id);
+            guardarYRenderizarCursos();
+        });
+    });
 }
 
-function abrirMuro(cursoId) {
-    cursoAbiertoId = cursoId;
-    const curso = datosApp.cursos.find(c => c.id === cursoId);
-    if (curso) {
-        muroTituloCurso.textContent = `${curso.nombre} - Muro`;
-        mostrarPublicaciones();
-        mostrarVista("muro");
-    }
+// --- GESTIÓN DEL MURO ---
+function abrirMuro(idCurso) {
+    const curso = cursos.find(c => c.id === idCurso);
+    if (!curso) return;
+    
+    document.getElementById("muro-titulo-curso").textContent = curso.nombre;
+    mostrarVista(vistaMuro);
+    renderizarMuro(idCurso);
 }
 
-function eliminarCurso(cursoId) {
-    if (confirm("¿Estás segura de borrar este curso? Se borrarán sus materiales y tareas asociadas.")) {
-        datosApp.cursos = datosApp.cursos.filter(c => c.id !== cursoId);
-        datosApp.materiales = datosApp.materiales.filter(m => m.cursold !== cursoId);
-        datosApp.tareas = datosApp.tareas.filter(t => t.cursold !== cursoId);
-        guardarDatos();
-        mostrarCursos();
-    }
+const btnVolverCursos = document.getElementById("btn-volver-cursos");
+if (btnVolverCursos) {
+    btnVolverCursos.addEventListener("click", () => {
+        mostrarVista(vistaCursos);
+    });
 }
 
-btnVolverCursos.addEventListener("click", () => {
-    cursoAbiertoId = null;
-    mostrarVista("cursos");
-});
+const pubTipo = document.getElementById("pub-tipo");
+if (pubTipo) {
+    pubTipo.addEventListener("change", (e) => {
+        const esTarea = e.target.value === "tarea";
+        document.getElementById("pub-fechalimite").style.display = esTarea ? "block" : "none";
+        document.getElementById("pub-puntaje").style.display = esTarea ? "block" : "none";
+    });
+}
 
-// --- 6. LÓGICA DE PUBLICACIONES (MATERIALES Y TAREAS) ---
-pubTipo.addEventListener("change", (e) => {
-    const tipo = e.target.value;
-    if (tipo === "tarea") {
-        pubFechaLimite.style.display = "block";
-        pubPuntaje.style.display = "block";
-    } else {
-        pubFechaLimite.style.display = "none";
-        pubPuntaje.style.display = "none";
-    }
-});
-
-formPublicar.addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const titulo = document.getElementById("pub-titulo").value.trim();
-    const tipo = pubTipo.value;
-    const contenido = document.getElementById("pub-contenido").value.trim();
-    const fechaActual = new Date().toLocaleDateString();
-
-    if (!titulo) {
-        alert("El título es obligatorio.");
-        return;
-    }
-
-    if (tipo === "enlace" && contenido && !contenido.startsWith("https://")) {
-        alert("Los enlaces deben comenzar con https://");
-        return;
-    }
-
-    if (tipo === "tarea") {
-        const fechaLim = pubFechaLimite.value;
-        const puntajeMax = parseInt(pubPuntaje.value) || 10;
-
-        if (!fechaLim) {
-            alert("Las tareas requieren una fecha límite.");
-            return;
-        }
-
-        const nuevaTarea = {
-            id: "t_" + Date.now(),
-            cursold: cursoAbiertoId,
-            titulo,
-            consigna: contenido,
-            fechaLimite: fechaLim,
-            puntajeMaximo: puntajeMax,
-            fechaPublicacion: fechaActual
+const formPublicar = document.getElementById("form-publicar");
+if (formPublicar) {
+    formPublicar.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const nuevaPub = {
+            id: Date.now().toString(),
+            cursoId: cursoActualId,
+            titulo: document.getElementById("pub-titulo").value,
+            tipo: document.getElementById("pub-tipo").value,
+            contenido: document.getElementById("pub-contenido").value,
+            fechaLimite: document.getElementById("pub-fechalimite").value,
+            puntaje: document.getElementById("pub-puntaje").value,
+            fechaCreacion: new Date().toLocaleDateString()
         };
+        publicaciones.push(nuevaPub);
+        localStorage.setItem("bioclick_publicaciones", JSON.stringify(publicaciones));
+        formPublicar.reset();
+        document.getElementById("pub-fechalimite").style.display = "none";
+        document.getElementById("pub-puntaje").style.display = "none";
+        renderizarMuro(cursoActualId);
+    });
+}
 
-        datosApp.tareas.push(nuevaTarea);
-    } else {
-        const nuevoMaterial = {
-            id: "m_" + Date.now(),
-            cursold: cursoAbiertoId,
-            titulo,
-            tipo,
-            contenido,
-            fechaPublicacion: fechaActual
-        };
-
-        datosApp.materiales.push(nuevoMaterial);
-    }
-
-    guardarDatos();
-    formPublicar.reset();
-    pubFechaLimite.style.display = "none";
-    pubPuntaje.style.display = "none";
-    mostrarPublicaciones();
-});
-
-function mostrarPublicaciones() {
-    muroPublicaciones.innerHTML = "";
-
-    const materialesCurso = datosApp.materiales.filter(m => m.cursold === cursoAbiertoId);
-    const tareasCurso = datosApp.tareas.filter(t => t.cursold === cursoAbiertoId);
-
-    const publicaciones = [
-        ...materialesCurso.map(m => ({ ...m, esTarea: false })),
-        ...tareasCurso.map(t => ({ ...t, esTarea: true }))
-    ];
-
-    if (publicaciones.length === 0) {
-        muroPublicaciones.innerHTML = "<p>No hay publicaciones en este muro todavía.</p>";
+function renderizarMuro(idCurso) {
+    const contenedor = document.getElementById("muro-publicaciones");
+    if (!contenedor) return;
+    contenedor.innerHTML = "";
+    
+    const pubsCurso = publicaciones.filter(p => p.cursoId === idCurso);
+    
+    if (pubsCurso.length === 0) {
+        contenedor.innerHTML = "<p>No hay publicaciones en este curso todavía.</p>";
         return;
     }
-
-    const publicacionesOrdenadas = publicaciones.sort((a, b) => b.id.localeCompare(a.id));
-
-    publicacionesOrdenadas.forEach(pub => {
-        const tarjetaPub = document.createElement("div");
-        tarjetaPub.className = "tarjeta-publicacion";
-
-        let icono = "📄";
-        if (pub.tipo === "enlace") icono = "🔗";
-        if (pub.esTarea) icono = "📝";
-
-        let detalleHTML = "";
-        let btnAccionHTML = "";
-
-        if (pub.esTarea) {
-            const entregasDeEstaTarea = datosApp.entregas.filter(en => en.tareald === pub.id);
-            const sinCorregir = entregasDeEstaTarea.filter(en => en.estado !== "corregida").length;
-
-            detalleHTML = `
-                <p><strong>Consigna:</strong> ${pub.consigna}</p>
-                <p>⏰ Vence el: ${pub.fechaLimite} | Puntuación máx: ${pub.puntajeMaximo} pts</p>
-                <p class="info-entregas">📥 ${entregasDeEstaTarea.length} entregas (${sinCorregir} sin corregir)</p>
-            `;
-            btnAccionHTML = `<button onclick="abrirTarea('${pub.id}')">Ver Tarea y Entregas</button>`;
-        } else if (pub.tipo === "enlace") {
-            detalleHTML = `<p><a href="${pub.contenido}" target="_blank" rel="noopener">Abrir enlace ↗</a></p>`;
-        } else {
-            detalleHTML = `<p>${pub.contenido}</p>`;
-        }
-
-        tarjetaPub.innerHTML = `
-            <div class="pub-header">
-                <h4>${icono} ${pub.titulo}</h4>
-                <span class="pub-fecha">Publicado el ${pub.fechaPublicacion}</span>
-            </div>
-            ${detalleHTML}
-            <div class="acciones-pub">
-                ${btnAccionHTML}
-                <button class="btn-eliminar solo-docente" onclick="eliminarPublicacion('${pub.id}', ${pub.esTarea})">🗑️ Borrar</button>
-            </div>
+    
+    pubsCurso.forEach(pub => {
+        const div = document.createElement("div");
+        div.className = "publicacion-card";
+        div.innerHTML = `
+            <span class="badge-tipo">${pub.tipo.toUpperCase()}</span>
+            <h4>${pub.titulo}</h4>
+            <p>${pub.contenido}</p>
+            ${pub.fechaLimite ? `<p><strong>Fecha límite:</strong> ${new Date(pub.fechaLimite).toLocaleString()}</p>` : ''}
+            ${pub.tipo === 'tarea' ? `<button class="btn-ver-tarea" data-id="${pub.id}">Ver Tarea / Entregar</button>` : ''}
+            <button class="btn-eliminar-pub" data-id="${pub.id}" style="background:#e74c3c; color:white; border:none; padding:4px 8px; margin-top:5px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Eliminar</button>
         `;
-        muroPublicaciones.appendChild(tarjetaPub);
+        contenedor.appendChild(div);
     });
-
-    aplicarModoRol();
+    
+    document.querySelectorAll(".btn-ver-tarea").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            tareaActualId = e.target.getAttribute("data-id");
+            abrirDetalleTarea(tareaActualId);
+        });
+    });
+    
+    document.querySelectorAll(".btn-eliminar-pub").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const id = e.target.getAttribute("data-id");
+            publicaciones = publicaciones.filter(p => p.id !== id);
+            localStorage.setItem("bioclick_publicaciones", JSON.stringify(publicaciones));
+            renderizarMuro(cursoActualId);
+        });
+    });
 }
 
-function eliminarPublicacion(id, esTarea) {
-    if (confirm("¿Estás segura de eliminar esta publicación?")) {
-        if (esTarea) {
-            datosApp.tareas = datosApp.tareas.filter(t => t.id !== id);
-            datosApp.entregas = datosApp.entregas.filter(en => en.tareald !== id);
-        } else {
-            datosApp.materiales = datosApp.materiales.filter(m => m.id !== id);
-        }
-        guardarDatos();
-        mostrarPublicaciones();
-    }
+// --- GESTIÓN DE TAREAS Y ENTREGAS ---
+const btnVolverMuro = document.getElementById("btn-volver-muro");
+if (btnVolverMuro) {
+    btnVolverMuro.addEventListener("click", () => {
+        mostrarVista(vistaMuro);
+    });
 }
 
-// --- 7. LÓGICA DE TAREAS Y ENTREGAS ---
-function abrirTarea(tareaId) {
-    tareaAbiertaId = tareaId;
-    const tarea = datosApp.tareas.find(t => t.id === tareaId);
+function abrirDetalleTarea(idTarea) {
+    const tarea = publicaciones.find(p => p.id === idTarea);
     if (!tarea) return;
-
-    detalleTarea.innerHTML = `
-        <h3>📝 ${tarea.titulo}</h3>
-        <p><strong>Consigna:</strong> ${tarea.consigna}</p>
-        <p>⏰ Fecha límite: ${tarea.fechaLimite} | Puntaje máximo: ${tarea.puntajeMaximo} pts</p>
+    
+    const contenedorDetalle = document.getElementById("detalle-tarea");
+    contenedorDetalle.innerHTML = `
+        <h2>${tarea.titulo}</h2>
+        <p>${tarea.contenido}</p>
+        <p><strong>Fecha límite:</strong> ${tarea.fechaLimite ? new Date(tarea.fechaLimite).toLocaleString() : 'Sin límite'}</p>
+        <p><strong>Puntaje máximo:</strong> ${tarea.puntaje || 'No especificado'}</p>
     `;
-
-    mostrarEntregas();
-    mostrarVista("tarea");
+    
+    const panelAlumno = document.getElementById("panel-entrega-alumno");
+    const panelDocente = document.getElementById("panel-correccion-docente");
+    
+    if (rolActual === "alumno") {
+        panelAlumno.style.display = "block";
+        panelDocente.style.display = "none";
+    } else {
+        panelAlumno.style.display = "none";
+        panelDocente.style.display = "block";
+        renderizarEntregasDocente(idTarea);
+    }
+    
+    mostrarVista(vistaTarea);
 }
 
-btnVolverMuro.addEventListener("click", () => {
-    tareaAbiertaId = null;
-    mostrarVista("muro");
-});
-
-formEntrega.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const nombreAlumno = document.getElementById("entrega-alumno").value.trim();
-    const linkTrabajo = document.getElementById("entrega-link").value.trim();
-
-    if (!linkTrabajo.startsWith("https://")) {
-        alert("El enlace del trabajo debe comenzar con https://");
-        return;
-    }
-
-    const tarea = datosApp.tareas.find(t => t.id === tareaAbiertaId);
-    const fechaHoraActual = new Date();
-    const fechaLimiteObj = new Date(tarea.fechaLimite);
-
-    const estadoEntrega = fechaHoraActual <= fechaLimiteObj ? "a tiempo" : "tarde";
-
-    const entregaExistente = datosApp.entregas.find(en => en.tareald === tareaAbiertaId && en.alumno.toLowerCase() === nombreAlumno.toLowerCase());
-
-    if (entregaExistente) {
-        if (entregaExistente.estado === "corregida") {
-            alert("Tu tarea ya fue corregida, no se puede modificar.");
-            return;
+const formEntrega = document.getElementById("form-entrega");
+if (formEntrega) {
+    formEntrega.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const tarea = publicaciones.find(p => p.id === tareaActualId);
+        const ahora = new Date();
+        const fechaLim = tarea.fechaLimite ? new Date(tarea.fechaLimite) : null;
+        
+        let estadoEntrega = "A tiempo";
+        if (fechaLim && ahora > fechaLim) {
+            estadoEntrega = "Tarde";
         }
-        entregaExistente.link = linkTrabajo;
-        entregaExistente.estado = estadoEntrega;
-        entregaExistente.fecha = fechaHoraActual.toLocaleString();
-    } else {
+        
         const nuevaEntrega = {
-            id: "en_" + Date.now(),
-            tareald: tareaAbiertaId,
-            alumno: nombreAlumno,
-            link: linkTrabajo,
-            fecha: fechaHoraActual.toLocaleString(),
+            id: Date.now().toString(),
+            tareaId: tareaActualId,
+            alumno: document.getElementById("entrega-alumno").value,
+            link: document.getElementById("entrega-link").value,
             estado: estadoEntrega,
             nota: "",
             devolucion: ""
         };
-        datosApp.entregas.push(nuevaEntrega);
-    }
+        
+        entregas.push(nuevaEntrega);
+        localStorage.setItem("bioclick_entregas", JSON.stringify(entregas));
+        formEntrega.reset();
+        alert("¡Tarea entregada con éxito! Estado: " + estadoEntrega);
+    });
+}
 
-    guardarDatos();
-    formEntrega.reset();
-    alert("¡Tarea enviada con éxito!");
-    mostrarEntregas();
-});
-
-function mostrarEntregas() {
+function renderizarEntregasDocente(idTarea) {
+    const listaEntregas = document.getElementById("lista-entregas");
+    if (!listaEntregas) return;
     listaEntregas.innerHTML = "";
-    const entregasDeTarea = datosApp.entregas.filter(en => en.tareald === tareaAbiertaId);
-
-    if (entregasDeTarea.length === 0) {
-        listaEntregas.innerHTML = "<p>No hay entregas registradas para esta tarea.</p>";
+    
+    const entregasTarea = entregas.filter(e => e.tareaId === idTarea);
+    if (entregasTarea.length === 0) {
+        listaEntregas.innerHTML = "<p>No hay entregas de alumnos todavía.</p>";
         return;
     }
-
-    entregasDeTarea.forEach(entrega => {
-        const divEntrega = document.createElement("div");
-        divEntrega.className = "tarjeta-entrega";
-
-        let claseEstado = entrega.estado === "tarde" ? "estado-tarde" : "estado-tiempo";
-
-        divEntrega.innerHTML = `
-            <p><strong>Alumno/a:</strong> ${entrega.alumno}</p>
-            <p>🔗 <a href="${entrega.link}" target="_blank" rel="noopener">Ver trabajo entregado</a></p>
-            <p>📅 Fecha: ${entrega.fecha} - <span class="${claseEstado}">${entrega.estado.toUpperCase()}</span></p>
-            <div class="seccion-correccion solo-docente">
-                <hr>
-                <label>Nota (1 al 10):</label>
-                <input type="number" id="nota_${entrega.id}" value="${entrega.nota}" min="1" max="10">
-                <label>Devolución:</label>
-                <textarea id="dev_${entrega.id}" placeholder="Comentarios para el alumno...">${entrega.devolucion}</textarea>
-                <button onclick="guardarCorreccion('${entrega.id}')">💾 Guardar corrección</button>
+    
+    entregasTarea.forEach(ent => {
+        const div = document.createElement("div");
+        div.className = "entrega-card";
+        div.innerHTML = `
+            <p><strong>Alumno:</strong> ${ent.alumno}</p>
+            <p><strong>Trabajo:</strong> <a href="${ent.link}" target="_blank">Ver enlace</a></p>
+            <p><strong>Estado:</strong> <span class="${ent.estado === 'A tiempo' ? 'badge-tiempo' : 'badge-tarde'}">${ent.estado}</span></p>
+            <div class="form-correccion">
+                <input type="number" class="input-nota" data-id="${ent.id}" placeholder="Nota (1-10)" min="1" max="10" value="${ent.nota || ''}">
+                <input type="text" class="input-devolucion" data-id="${ent.id}" placeholder="Devolución docente" value="${ent.devolucion || ''}">
+                <button class="btn-guardar-correccion" data-id="${ent.id}">Guardar</button>
             </div>
-            ${modoActual === "alumno" ? `<p><strong>Nota:</strong> ${entrega.nota ? entrega.nota : "Pendiente"} | <strong>Devolución:</strong> ${entrega.devolucion ? entrega.devolucion : "Sin devoluciones aún"}</p>` : ""}
         `;
-        listaEntregas.appendChild(divEntrega);
+        listaEntregas.appendChild(div);
     });
-
-    aplicarModoRol();
-}
-
-function guardarCorreccion(entregaId) {
-    const notaInput = document.getElementById(`nota_${entregaId}`).value;
-    const devInput = document.getElementById(`dev_${entregaId}`).value.trim();
-
-    const notaNum = parseInt(notaInput);
-    if (!notaNum || notaNum < 1 || notaNum > 10) {
-        alert("Por favor ingresa una nota válida entre 1 y 10.");
-        return;
-    }
-
-    const entrega = datosApp.entregas.find(en => en.id === entregaId);
-    if (entrega) {
-        entrega.nota = notaNum;
-        entrega.devolucion = devInput;
-        entrega.estado = "corregida";
-        guardarDatos();
-        alert("¡Corrección guardada con éxito!");
-        mostrarEntregas();
-    }
-}
-
-// --- 8. EXPORTAR E IMPORTAR JSON ---
-btnExportar.addEventListener("click", () => {
-    const datosString = JSON.stringify(datosApp, null, 2);
-    const blob = new Blob([datosString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const enlaceTemp = document.createElement("a");
-    enlaceTemp.href = url;
-    enlaceTemp.download = "bioclick.json";
-    enlaceTemp.click();
-    URL.revokeObjectURL(url);
-});
-
-inputImportar.addEventListener("change", (e) => {
-    const archivo = e.target.files[0];
-    if (!archivo) return;
-
-    const lector = new FileReader();
-    lector.onload = function(evento) {
-        try {
-            const datosImportados = JSON.parse(evento.target.result);
+    
+    document.querySelectorAll(".btn-guardar-correccion").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const id = e.target.getAttribute("data-id");
+            const card = e.target.closest(".entrega-card");
+            const nota = card.querySelector(".input-nota").value;
+            const devolucion = card.querySelector(".input-devolucion").value;
             
-            if (datosImportados && Array.isArray(datosImportados.cursos) && Array.isArray(datosImportados.materiales) && Array.isArray(datosImportados.tareas) && Array.isArray(datosImportados.entregas)) {
-                if (confirm("¿Estás segura de reemplazar los datos actuales con los del archivo importado?")) {
-                    datosApp = datosImportados;
-                    guardarDatos();
-                    mostrarCursos();
-                    mostrarVista("cursos");
-                    alert("¡Datos importados con éxito!");
-                }
-            } else {
-                alert("El archivo JSON no tiene la estructura correcta para BioClick.");
+            const entregaObj = entregas.find(en => en.id === id);
+            if (entregaObj) {
+                entregaObj.nota = nota;
+                entregaObj.devolucion = devolucion;
+                localStorage.setItem("bioclick_entregas", JSON.stringify(entregas));
+                alert("Corrección guardada correctamente.");
             }
-        } catch (error) {
-            alert("El archivo seleccionado no es un JSON válido.");
-        }
-    };
-    lector.readAsText(archivo);
-});
-
-// --- 9. INICIALIZACIÓN Y ROLES ---
-function aplicarModoRol() {
-    const elementosSoloDocente = document.querySelectorAll(".solo-docente");
-    elementosSoloDocente.forEach(el => {
-        el.style.display = (modoActual === "docente") ? "block" : "none";
+        });
     });
-
-    if (panelEntregaAlumno) {
-        panelEntregaAlumno.style.display = (modoActual === "alumno") ? "block" : "none";
-    }
 }
 
-selectRol.addEventListener("change", (e) => {
-    modoActual = e.target.value;
-    localStorage.setItem("aula-modo", modoActual);
-    aplicarModoRol();
+// --- EXPORTAR E IMPORTAR JSON (CON SOPORTE PARA navigator.share) ---
+const btnExportar = document.getElementById("btn-exportar");
+if (btnExportar) {
+    btnExportar.addEventListener("click", async () => {
+        const datosExportar = {
+            cursos: JSON.parse(localStorage.getItem("bioclick_cursos") || "[]"),
+            publicaciones: JSON.parse(localStorage.getItem("bioclick_publicaciones") || "[]"),
+            entregas: JSON.parse(localStorage.getItem("bioclick_entregas") || "[]")
+        };
+
+        const jsonString = JSON.stringify(datosExportar, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const archivo = new File([blob], "bioclick.json", { type: "application/json" });
+
+        if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+            try {
+                await navigator.share({
+                    title: "Respaldo de BioClick",
+                    text: "Aquí están los datos y cursos respaldados de BioClick.",
+                    files: [archivo]
+                });
+                return;
+            } catch (error) {
+                if (error.name !== "AbortError") {
+                    console.log("Error al compartir, usando descarga alternativa...", error);
+                } else {
+                    return;
+                }
+            }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = "bioclick.json";
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        URL.revokeObjectURL(url);
+    });
+}
+
+const inputImportar = document.getElementById("input-importar");
+if (inputImportar) {
+    inputImportar.addEventListener("change", (e) => {
+        const archivo = e.target.files[0];
+        if (!archivo) return;
+        
+        const lector = new FileReader();
+        lector.onload = function(evento) {
+            try {
+                const datos = JSON.parse(evento.target.result);
+                if (datos.cursos) {
+                    localStorage.setItem("bioclick_cursos", JSON.stringify(datos.cursos));
+                    cursos = datos.cursos;
+                }
+                if (datos.publicaciones) {
+                    localStorage.setItem("bioclick_publicaciones", JSON.stringify(datos.publicaciones));
+                    publicaciones = datos.publicaciones;
+                }
+                if (datos.entregas) {
+                    localStorage.setItem("bioclick_entregas", JSON.stringify(datos.entregas));
+                    entregas = datos.entregas;
+                }
+                alert("¡Datos importados con éxito!");
+                renderizarCursos();
+            } catch (err) {
+                alert("Error al leer el archivo JSON.");
+            }
+        };
+        lector.readAsText(archivo);
+    });
+}
+
+// --- AVISO DE ESTADO DE CONEXIÓN (ONLINE / OFFLINE) ---
+function crearAvisoConexion() {
+    if (document.getElementById("aviso-conexion")) return;
+
+    const aviso = document.createElement("div");
+    aviso.id = "aviso-conexion";
+    aviso.textContent = "⚠️ Sin conexión: tus datos se siguen guardando en este celular";
+    
+    document.body.insertBefore(aviso, document.body.firstChild);
+
+    function actualizarEstadoConexion() {
+        if (navigator.onLine) {
+            aviso.style.display = "none";
+        } else {
+            aviso.style.display = "block";
+        }
+    }
+
+    window.addEventListener("online", actualizarEstadoConexion);
+    window.addEventListener("offline", actualizarEstadoConexion);
+
+    actualizarEstadoConexion();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    crearAvisoConexion();
+    actualizarInterfazRol();
+    renderizarCursos();
 });
 
-// Arrancar la app
-document.addEventListener("DOMContentLoaded", () => {
-    selectRol.value = modoActual;
-    mostrarCursos();
-    mostrarVista("cursos");
-});
+// --- REGISTRO DEL SERVICE WORKER PARA PWA ---
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+            .then(() => console.log("Service Worker registrado con éxito."))
+            .catch((error) => console.log("Error al registrar el Service Worker:", error));
+    });
+}
