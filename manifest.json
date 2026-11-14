@@ -1,8 +1,9 @@
 {
+  "id": "./index.html",
   "name": "BioClick - Plataforma Educativa",
   "short_name": "BioClick",
   "description": "Plataforma educativa para la gestión de cursos, materiales y tareas",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -24,29 +25,3 @@
     }
   ]
 }
-```[cite: 108]
-
----
-
-### 2. Enlazar el manifest en el `<head>` de `index.html`
-Para que el navegador del celular detecte la identidad de la PWA, necesitamos agregar 3 líneas dentro de la sección `<head>` de tu archivo **`index.html`**[cite: 108].
-
-Para evitar cualquier error de tipeo, te paso el bloque del `<head>` de tu **`index.html`** ya actualizado. Reemplazá la parte superior de tu archivo `index.html` (desde `<!DOCTYPE html>` hasta la etiqueta `</head>`) por esto:
-
-```html
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BioClick - Plataforma Educativa</title>
-    
-    <!-- Enlaces y metadatos para la PWA -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#68b01c">
-    <link rel="apple-touch-icon" href="icono-192.png">
-
-    <!-- Enlace al archivo de estilos -->
-    <link rel="stylesheet" href="styles.css">
-</head>
-```[cite: 108]
