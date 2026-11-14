@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioClick - Plataforma Educativa</title>
+    
+    <!-- Enlaces y metadatos para la PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#68b01c">
+    <link rel="apple-touch-icon" href="icono-192.png">
+
+    <!-- Enlace al archivo de estilos -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Encabezado principal -->
+    <header>
+        <h1>🌱 BioClick</h1>
+        <div class="header-controles">
+            <label for="select-rol">Ver como:</label>
+            <select id="select-rol">
+                <option value="docente">Docente</option>
+                <option value="alumno">Alumno</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <!-- VISTA 1: Mis Cursos -->
+        <section id="vista-cursos" class="vista">
+            <h2>🌿 Mis cursos</h2>
+            
+            <!-- Formulario para crear curso (Solo visible para docente) -->
+            <div id="form-curso-container" class="solo-docente">
+                <h3>Crear nuevo curso</h3>
+                <form id="form-curso">
+                    <input type="text" id="curso-nombre" placeholder="Nombre del curso (ej: Biología 6.°)" required>
+                    <input type="text" id="curso-docente" placeholder="Profesor/a" required>
+                    <input type="color" id="curso-color" value="#68b01c">
+                    <input type="text" id="curso-codigo" placeholder="Código único (ej: BIO6)" required>
+                    <button type="submit">Crear curso</button>
+                </form>
+            </div>
+
+            <!-- Contenedor de la grilla de cursos -->
+            <div id="grilla-cursos" class="grilla">
+                <!-- Aquí se cargarán las tarjetas de cursos dinámicamente -->
+            </div>
+        </section>
+
+        <!-- VISTA 2: Detalle del Curso (Muro) -->
+        <section id="vista-muro" class="vista" style="display: none;">
+            <button id="btn-volver-cursos">← Volver a Mis Cursos</button>
+            <h2 id="muro-titulo-curso">Nombre del Curso</h2>
+            
+            <!-- Formulario para publicar material o tarea (Solo docente) -->
+            <div id="form-publicar-container" class="solo-docente">
+                <h3>Nueva publicación</h3>
+                <form id="form-publicar">
+                    <input type="text" id="pub-titulo" placeholder="Título" required>
+                    <select id="pub-tipo">
+                        <option value="texto">Apunte (Texto)</option>
+                        <option value="enlace">Enlace / Video</option>
+                        <option value="tarea">Tarea con entrega</option>
+                    </select>
+                    <textarea id="pub-contenido" placeholder="Consigna o contenido / URL"></textarea>
+                    <input type="datetime-local" id="pub-fechalimite" style="display: none;">
+                    <input type="number" id="pub-puntaje" placeholder="Puntaje máximo (para tareas)" min="1" style="display: none;">
+                    <button type="submit" id="btn-publicar">Publicar</button>
+                </form>
+            </div>
+
+            <!-- Muro de publicaciones -->
+            <div id="muro-publicaciones">
+                <!-- Aquí se listarán materiales y tareas -->
+            </div>
+        </section>
+
+        <!-- VISTA 3: Detalle de Tarea y Entregas -->
+        <section id="vista-tarea" class="vista" style="display: none;">
+            <button id="btn-volver-muro">← Volver al Muro</button>
+            <div id="detalle-tarea">
+                <!-- Información de la tarea seleccionada -->
+            </div>
+
+            <!-- Panel de entrega para el Alumno -->
+            <div id="panel-entrega-alumno" class="seccion-rol">
+                <h3>Entregar mi tarea</h3>
+                <form id="form-entrega">
+                    <input type="text" id="entrega-alumno" placeholder="Nombre y apellido del alumno" required>
+                    <input type="text" id="entrega-link" placeholder="Enlace de tu trabajo (https://...)" required>
+                    <button type="submit">Enviar tarea</button>
+                </form>
+            </div>
+
+            <!-- Panel de corrección para el Docente -->
+            <div id="panel-correccion-docente" class="solo-docente">
+                <h3>Entregas de los alumnos</h3>
+                <div id="lista-entregas">
+                    <!-- Aquí el docente corrige las entregas -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Botones de Exportar e Importar JSON -->
+    <footer>
+        <button id="btn-exportar">📥 Exportar JSON</button>
+        <label id="btn-importar-label">
+            📤 Importar JSON <input type="file" id="input-importar" accept=".json" style="display: none;">
+        </label>
+        <p class="nota-footer">💾 Se guarda solo en localStorage</p>
+    </footer>
+
+    <!-- Enlace al archivo de lógica -->
+    <script src="app.js"></script>
+</body>
+</html>
